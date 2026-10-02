@@ -1,0 +1,20 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/siemens/kas/master/kas/schema-kas.json
+
+header:
+  version: 14
+
+repos:
+  meta-foundries:
+    url: https://github.com/foundriesio/meta-foundries
+    branch: main
+    commit: b5fe8003d4cca81f2287afc3617bf90e8f166eba
+
+local_conf_header:
+  ci: |
+    SOTA_SKIP_CRED_WARN = "1"
+
+  fio: |
+    FIO_DEVICE_API = "https://local-server/v1/devices"
+    FIO_OAUTH_API = "https://local-server/oauth2"
+    IMAGE_INSTALL:append = " sudo"
+    DISTRO_EXTRA_RDEPENDS:append = "packagegroup-foundries-platform packagegroup-foundries-containers"

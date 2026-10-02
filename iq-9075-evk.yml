@@ -1,0 +1,123 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/siemens/kas/master/kas/schema-kas.json
+
+header:
+  version: 14
+
+  includes:
+    - repo: meta-qcom
+      file: ci/iq-9075-evk.yml
+    - repo: meta-qcom
+      file: ci/qcom-distro-sota.yml
+    - repo: meta-qcom
+      file: ci/performance.yml
+    - repo: meta-qcom
+      file: ci/capsule.yml
+    - repo: meta-qcom
+      file: ci/capsule-test-keys.yml
+    - repo: meta-qcom
+      file: ci/base.lock.yml
+    - repo: meta-qcom
+      file: ci/meta-arm.yml
+    - common.yml
+
+repos:
+  meta-qcom:
+    url: https://github.com/qualcomm-linux/meta-qcom
+    branch: wrynose
+    # use QLI 2.1 commit
+    commit: ea0fdcc27decd59c3e9bc81dcacf9c5f9a65a062
+
+local_conf_header:
+  capsule-board: |
+    CAPSULE_GUID = "78462415-6133-431c-9fae-48f2bafd5c71"
+
+    # Capsule payload: every *_a boot-stack partition the 002 flash set
+    # programs, on the capsule-supported disks (UFS_LUN1/UFS_LUN4; LUN2's
+    # copies are qdl-only). Updating the full set together keeps the boot
+    # stack consistent -- a partial mix (e.g. new xbl_config on GA xbl)
+    # boot-loops. Dest *_a only, no Backup entries; *_b stays untouched
+    # as the fallback copy. GUIDs per cbsp-boot-utilities
+    # FirmwarePartitions.md, verified against the board's live GPT.
+    # apdp (zeros placeholder) and partitions with no image in the build
+    # (qupfw, gearvm, qweslicstore, ddr, keymaster) are omitted.
+    CAPSULE_ENTRIES = "xbl xbl_config shrm aop uefi uefisecapp xbl_ramdump lemans_dtb tz hyp devcfg cpucp multiimgoem multiimgqti imagefv"
+
+    CAPSULE_ENTRY_xbl[binary] = "xbl.elf"
+    CAPSULE_ENTRY_xbl[dest_disk] = "UFS_LUN1"
+    CAPSULE_ENTRY_xbl[dest_partition] = "xbl_a"
+    CAPSULE_ENTRY_xbl[dest_guid] = "{DEA0BA2C-CBDD-4805-B4F9-F428251C3E98}"
+
+    CAPSULE_ENTRY_xbl_config[binary] = "xbl_config.elf"
+    CAPSULE_ENTRY_xbl_config[dest_disk] = "UFS_LUN1"
+    CAPSULE_ENTRY_xbl_config[dest_partition] = "xbl_config_a"
+    CAPSULE_ENTRY_xbl_config[dest_guid] = "{5A325AE4-4276-B66D-0ADD-3494DF27706A}"
+
+    CAPSULE_ENTRY_shrm[binary] = "shrm.elf"
+    CAPSULE_ENTRY_shrm[dest_disk] = "UFS_LUN4"
+    CAPSULE_ENTRY_shrm[dest_partition] = "shrm_a"
+    CAPSULE_ENTRY_shrm[dest_guid] = "{CB74CA22-2F0D-4B82-A1D6-C4213F348D73}"
+
+    CAPSULE_ENTRY_aop[binary] = "aop.mbn"
+    CAPSULE_ENTRY_aop[dest_disk] = "UFS_LUN4"
+    CAPSULE_ENTRY_aop[dest_partition] = "aop_a"
+    CAPSULE_ENTRY_aop[dest_guid] = "{D69E90A5-4CAB-0071-F6DF-AB977F141A7F}"
+
+    CAPSULE_ENTRY_uefi[binary] = "uefi.elf"
+    CAPSULE_ENTRY_uefi[dest_disk] = "UFS_LUN4"
+    CAPSULE_ENTRY_uefi[dest_partition] = "uefi_a"
+    CAPSULE_ENTRY_uefi[dest_guid] = "{400FFDCD-22E0-47E7-9A23-F16ED9382388}"
+
+    CAPSULE_ENTRY_uefisecapp[binary] = "uefi_sec.mbn"
+    CAPSULE_ENTRY_uefisecapp[dest_disk] = "UFS_LUN4"
+    CAPSULE_ENTRY_uefisecapp[dest_partition] = "uefisecapp_a"
+    CAPSULE_ENTRY_uefisecapp[dest_guid] = "{BE8A7E08-1B7A-4CAE-993A-D5B7FB55B3C2}"
+
+    CAPSULE_ENTRY_xbl_ramdump[binary] = "XblRamdump.elf"
+    CAPSULE_ENTRY_xbl_ramdump[dest_disk] = "UFS_LUN4"
+    CAPSULE_ENTRY_xbl_ramdump[dest_partition] = "xbl_ramdump_a"
+    CAPSULE_ENTRY_xbl_ramdump[dest_guid] = "{0382F197-E41F-4E84-B18B-0B564AEAD875}"
+
+    # entry key is machine-namespaced (lemans_dtb, not dtb): the upstream
+    # firmware-qcom-capsule bbappend sets an UNQUALIFIED CAPSULE_ENTRY_dtb[*]
+    # (iq-x7181-evk / SPINOR) that is parsed after this conf and would
+    # otherwise override these UFS values. bitbake cannot machine-qualify a
+    # varflag, so a unique key is the only fix.
+    CAPSULE_ENTRY_lemans_dtb[binary] = "dtb.bin"
+    CAPSULE_ENTRY_lemans_dtb[dest_disk] = "UFS_LUN4"
+    CAPSULE_ENTRY_lemans_dtb[dest_partition] = "dtb_a"
+    CAPSULE_ENTRY_lemans_dtb[dest_guid] = "{2A1A52FC-AA0B-401C-A808-5EA0F91068F8}"
+
+    CAPSULE_ENTRY_tz[binary] = "tz.mbn"
+    CAPSULE_ENTRY_tz[dest_disk] = "UFS_LUN4"
+    CAPSULE_ENTRY_tz[dest_partition] = "tz_a"
+    CAPSULE_ENTRY_tz[dest_guid] = "{A053AA7F-40B8-4B1C-BA08-2F68AC71A4F4}"
+
+    CAPSULE_ENTRY_hyp[binary] = "hypvm.mbn"
+    CAPSULE_ENTRY_hyp[dest_disk] = "UFS_LUN4"
+    CAPSULE_ENTRY_hyp[dest_partition] = "hyp_a"
+    CAPSULE_ENTRY_hyp[dest_guid] = "{E1A6A689-0C8D-4CC6-B4E8-55A4320FBD8A}"
+
+    CAPSULE_ENTRY_devcfg[binary] = "devcfg_iot.mbn"
+    CAPSULE_ENTRY_devcfg[dest_disk] = "UFS_LUN4"
+    CAPSULE_ENTRY_devcfg[dest_partition] = "devcfg_a"
+    CAPSULE_ENTRY_devcfg[dest_guid] = "{F65D4B16-343D-4E25-AAFC-BE99B6556A6D}"
+
+    CAPSULE_ENTRY_cpucp[binary] = "cpucp.elf"
+    CAPSULE_ENTRY_cpucp[dest_disk] = "UFS_LUN4"
+    CAPSULE_ENTRY_cpucp[dest_partition] = "cpucp_a"
+    CAPSULE_ENTRY_cpucp[dest_guid] = "{1E8615BD-6D8C-41AD-B3EA-50E8BF40E43F}"
+
+    CAPSULE_ENTRY_multiimgoem[binary] = "multi_image.mbn"
+    CAPSULE_ENTRY_multiimgoem[dest_disk] = "UFS_LUN4"
+    CAPSULE_ENTRY_multiimgoem[dest_partition] = "multiimgoem_a"
+    CAPSULE_ENTRY_multiimgoem[dest_guid] = "{E126A436-757E-42D0-8D19-0F362F7A62B8}"
+
+    CAPSULE_ENTRY_multiimgqti[binary] = "multi_image_qti.mbn"
+    CAPSULE_ENTRY_multiimgqti[dest_disk] = "UFS_LUN4"
+    CAPSULE_ENTRY_multiimgqti[dest_partition] = "multiimgqti_a"
+    CAPSULE_ENTRY_multiimgqti[dest_guid] = "{846C6F05-EB46-4C0A-A1A3-3648EF3F9D0E}"
+
+    CAPSULE_ENTRY_imagefv[binary] = "imagefv.elf"
+    CAPSULE_ENTRY_imagefv[dest_disk] = "UFS_LUN4"
+    CAPSULE_ENTRY_imagefv[dest_partition] = "imagefv_a"
+    CAPSULE_ENTRY_imagefv[dest_guid] = "{17911177-C9E6-4372-933C-804B678E666F}"
