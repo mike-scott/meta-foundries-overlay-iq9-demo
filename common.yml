@@ -6,8 +6,8 @@ header:
 repos:
   meta-foundries:
     url: https://github.com/foundriesio/meta-foundries
-    branch: main
-    commit: b5fe8003d4cca81f2287afc3617bf90e8f166eba
+    branch: docker-wrynose
+    commit: 1b499f59adac8c2beb311bddfe541bb96abaef09
 
 local_conf_header:
   ci: |
