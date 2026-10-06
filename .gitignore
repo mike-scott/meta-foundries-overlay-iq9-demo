@@ -1,3 +1,9 @@
+# OCI images
+images/
+
+# temp dirs for builds and update-server targets
 build/
 targets/
+
+# checkout of sdk-tools w/ patches
 apps/qip-gesture/sdk-tools/
