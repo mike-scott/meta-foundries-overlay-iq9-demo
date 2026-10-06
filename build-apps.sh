@@ -7,6 +7,9 @@
 # Steps 1-2 also load into the local docker store. Each step writes an OCI
 # layout that the next one consumes as a named build context, because a
 # docker-container builder cannot see images in the local store.
+# Steps 1-2 are skipped when their OCI layout already exists, so builder cache
+# GC can never force the multi-hour step 1 again; FORCE_BUILDER=1 /
+# FORCE_RUNTIME=1 rebuild them (a rebuilt builder also rebuilds the runtime).
 #
 # Build context for 1-2 = apps/qip-gesture/sdk-tools/qimsdk-debian: upstream
 # sdk-tools at the pinned commit plus apps/qip-gesture/sdk-tools-patches (the
@@ -23,6 +26,8 @@ RUNTIME_TAG=${RUNTIME_TAG:-imsdk-runtime:latest}
 # Must match the image: in apps/qip-gesture/docker-compose.yml.
 QIP_GESTURE_TAG=${QIP_GESTURE_TAG:-qip.local/qip-gesture:v1}
 BUILDX_BUILDER=${BUILDX_BUILDER:-host-builder}
+FORCE_BUILDER=${FORCE_BUILDER:-0}
+FORCE_RUNTIME=${FORCE_RUNTIME:-0}
 
 ROOT=$(cd "$(dirname "$0")" && pwd)
 APP="$ROOT/apps/qip-gesture"
@@ -57,18 +62,36 @@ BUILDER_CTX="$BUILDER_TAG=oci-layout://$OCI_DIR/imsdk-builder:${BUILDER_TAG##*:}
 RUNTIME_CTX="$RUNTIME_TAG=oci-layout://$OCI_DIR/imsdk-runtime:${RUNTIME_TAG##*:}"
 mkdir -p "$OCI_DIR" "$(dirname "$OUT")"
 
+# build_base <layout-name> <tag> <force> <buildx args...>: sets BUILT=1 if it
+# built. The layout is exported to <dir>.tmp and renamed, so an interrupted
+# export never looks complete.
+build_base() {
+  local dir="$OCI_DIR/$1" tag=$2 force=$3
+  shift 3
+  BUILT=0
+  if [ "$force" != 1 ] && [ -f "$dir/index.json" ]; then
+    echo "skipped: $dir exists"
+    return
+  fi
+  rm -rf "$dir.tmp"
+  "${BUILD[@]}" "$@" \
+    --output "type=docker,name=$tag" \
+    --output "type=oci,dest=$dir.tmp,tar=false,name=$tag"
+  rm -rf "$dir"
+  mv "$dir.tmp" "$dir"
+  BUILT=1
+}
+
 echo "== 1/3: imsdk-builder ($BUILDER_TAG) =="
-"${BUILD[@]}" -f "$APP/Dockerfile.builder" \
-  --output "type=docker,name=$BUILDER_TAG" \
-  --output "type=oci,dest=$OCI_DIR/imsdk-builder,tar=false,name=$BUILDER_TAG" \
-  "$CTX"
+build_base imsdk-builder "$BUILDER_TAG" "$FORCE_BUILDER" \
+  -f "$APP/Dockerfile.builder" "$CTX"
+[ "$BUILT" = 1 ] && FORCE_RUNTIME=1
 
 echo "== 2/3: imsdk-runtime ($RUNTIME_TAG) from $BUILDER_TAG =="
-"${BUILD[@]}" -f "$APP/Dockerfile.runtime" --target imsdk_runtime_arm64 \
+build_base imsdk-runtime "$RUNTIME_TAG" "$FORCE_RUNTIME" \
+  -f "$APP/Dockerfile.runtime" --target imsdk_runtime_arm64 \
   --build-arg IMSDK_BUILDER_IMAGE="$BUILDER_TAG" \
   --build-context "$BUILDER_CTX" \
-  --output "type=docker,name=$RUNTIME_TAG" \
-  --output "type=oci,dest=$OCI_DIR/imsdk-runtime,tar=false,name=$RUNTIME_TAG" \
   "$CTX"
 
 echo "== 3/3: qip-gesture ($QIP_GESTURE_TAG) -> $OUT =="
