@@ -4,8 +4,8 @@
 #
 # qip-gesture's base images are chained through OCI layouts in build/oci:
 # a docker-container builder cannot see images in the local docker store.
-# Requires apps/qip-gesture/sdk-tools: upstream sdk-tools at 513e0a3 with
-# apps/qip-gesture/sdk-tools-patches applied.
+# apps/qip-gesture/sdk-tools is cloned at the pin and patched only when
+# missing, so local edits survive; delete it to start over.
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -18,6 +18,12 @@ CTX=$APP/sdk-tools/qimsdk-debian
 OCI=$PWD/build/oci
 BLD=imsdk-builder:qairt2.47.0-imsdk1.0.2
 RT=imsdk-runtime:latest
+
+if [ ! -d $APP/sdk-tools ]; then
+  git clone -b imsdk-tools.lnx.1.0 https://git.codelinaro.org/clo/le/sdk-tools.git $APP/sdk-tools
+  git -C $APP/sdk-tools checkout --detach 513e0a3fe1e67e131fa4f65694eeb07294ce8356
+  git -C $APP/sdk-tools apply "$PWD/$APP"/sdk-tools-patches/*.patch
+fi
 
 mkdir -p images "$OCI"
 # Each build is skipped when its output exists; delete the output to rebuild.
