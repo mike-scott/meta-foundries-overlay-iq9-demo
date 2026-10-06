@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
-# Build qip-gesture as an OCI image tarball for stage-app.py, in three buildx
-# steps on a docker-container builder:
+# Build the apps' images as OCI image tarballs (images/<app>.oci.tar) for
+# stage-app.py, on a docker-container buildx builder.
+#
+# shellhttpd: one arm64 build of apps/shellhttpd.
+#
+# qip-gesture, in three steps:
 #   1. imsdk-builder (x86 host image; cross-compiles to arm64)
 #   2. imsdk-runtime (arm64) FROM imsdk-builder
 #   3. qip-gesture   (arm64) FROM imsdk-runtime, compiled in imsdk-builder
@@ -23,7 +27,8 @@ SDK_TOOLS_BRANCH=${SDK_TOOLS_BRANCH:-imsdk-tools.lnx.1.0}
 SDK_TOOLS_COMMIT=${SDK_TOOLS_COMMIT:-513e0a3fe1e67e131fa4f65694eeb07294ce8356}
 BUILDER_TAG=${BUILDER_TAG:-imsdk-builder:qairt2.47.0-imsdk1.0.2}
 RUNTIME_TAG=${RUNTIME_TAG:-imsdk-runtime:latest}
-# Must match the image: in apps/qip-gesture/docker-compose.yml.
+# Must match the image: in each app's docker-compose.yml.
+SHELLHTTPD_TAG=${SHELLHTTPD_TAG:-local-server/shellhttpd:latest}
 QIP_GESTURE_TAG=${QIP_GESTURE_TAG:-qip.local/qip-gesture:v1}
 BUILDX_BUILDER=${BUILDX_BUILDER:-host-builder}
 FORCE_BUILDER=${FORCE_BUILDER:-0}
@@ -36,7 +41,8 @@ WORK=${WORK:-$APP/sdk-tools}
 # deb never lands in the runtime.
 PATCH_DIR=${PATCH_DIR:-$APP/sdk-tools-patches}
 OCI_DIR=${OCI_DIR:-$ROOT/build/oci}
-OUT=${OUT:-$ROOT/images/qip-gesture.oci.tar}
+IMAGES=${IMAGES:-$ROOT/images}
+OUT=${OUT:-$IMAGES/qip-gesture.oci.tar}
 
 driver=$(docker buildx inspect "$BUILDX_BUILDER" 2>/dev/null | awk '/^Driver:/{print $2}' || true)
 if [ "$driver" != "docker-container" ]; then
@@ -45,6 +51,14 @@ if [ "$driver" != "docker-container" ]; then
        "--driver docker-container" >&2
   exit 1
 fi
+BUILD=(docker buildx build --builder "$BUILDX_BUILDER")
+mkdir -p "$IMAGES" "$(dirname "$OUT")"
+
+echo "== shellhttpd ($SHELLHTTPD_TAG) -> $IMAGES/shellhttpd.oci.tar =="
+"${BUILD[@]}" --platform linux/arm64 --provenance=false --sbom=false \
+  --output "type=oci,dest=$IMAGES/shellhttpd.oci.tar,name=$SHELLHTTPD_TAG" \
+  "$ROOT/apps/shellhttpd"
+
 # Pin and patch only on first checkout; an existing checkout is used as-is so
 # local sdk-tools edits survive. Delete it to start over from the pin.
 if [ ! -d "$WORK/.git" ]; then
@@ -56,11 +70,10 @@ if [ ! -d "$WORK/.git" ]; then
 fi
 
 CTX="$WORK/qimsdk-debian"
-BUILD=(docker buildx build --builder "$BUILDX_BUILDER")
 # oci-layout://<dir>:<tag> selects the image by its ref.name annotation.
 BUILDER_CTX="$BUILDER_TAG=oci-layout://$OCI_DIR/imsdk-builder:${BUILDER_TAG##*:}"
 RUNTIME_CTX="$RUNTIME_TAG=oci-layout://$OCI_DIR/imsdk-runtime:${RUNTIME_TAG##*:}"
-mkdir -p "$OCI_DIR" "$(dirname "$OUT")"
+mkdir -p "$OCI_DIR"
 
 # build_base <layout-name> <tag> <force> <buildx args...>: sets BUILT=1 if it
 # built. The layout is exported to <dir>.tmp and renamed, so an interrupted
@@ -82,19 +95,19 @@ build_base() {
   BUILT=1
 }
 
-echo "== 1/3: imsdk-builder ($BUILDER_TAG) =="
+echo "== qip-gesture 1/3: imsdk-builder ($BUILDER_TAG) =="
 build_base imsdk-builder "$BUILDER_TAG" "$FORCE_BUILDER" \
   -f "$APP/Dockerfile.builder" "$CTX"
 [ "$BUILT" = 1 ] && FORCE_RUNTIME=1
 
-echo "== 2/3: imsdk-runtime ($RUNTIME_TAG) from $BUILDER_TAG =="
+echo "== qip-gesture 2/3: imsdk-runtime ($RUNTIME_TAG) from $BUILDER_TAG =="
 build_base imsdk-runtime "$RUNTIME_TAG" "$FORCE_RUNTIME" \
   -f "$APP/Dockerfile.runtime" --target imsdk_runtime_arm64 \
   --build-arg IMSDK_BUILDER_IMAGE="$BUILDER_TAG" \
   --build-context "$BUILDER_CTX" \
   "$CTX"
 
-echo "== 3/3: qip-gesture ($QIP_GESTURE_TAG) -> $OUT =="
+echo "== qip-gesture 3/3: qip-gesture ($QIP_GESTURE_TAG) -> $OUT =="
 "${BUILD[@]}" --platform linux/arm64 -f "$APP/Dockerfile" \
   --build-arg IMSDK_BUILDER_IMAGE="$BUILDER_TAG" \
   --build-arg IMSDK_RUNTIME_IMAGE="$RUNTIME_TAG" \
@@ -103,4 +116,5 @@ echo "== 3/3: qip-gesture ($QIP_GESTURE_TAG) -> $OUT =="
   --output "type=oci,dest=$OUT,name=$QIP_GESTURE_TAG" \
   "$APP"
 
-echo "stage with: stage-app.py --image $QIP_GESTURE_TAG=$OUT ..."
+echo "stage with: stage-app.py --image $SHELLHTTPD_TAG=$IMAGES/shellhttpd.oci.tar ... apps/shellhttpd ..."
+echo "            stage-app.py --image $QIP_GESTURE_TAG=$OUT ... apps/qip-gesture ..."
