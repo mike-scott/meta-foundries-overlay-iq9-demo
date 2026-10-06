@@ -9,10 +9,9 @@ S = "${UNPACKDIR}"
 
 do_install() {
     install -D -m 0644 ${S}/qimsdk.json ${D}${sysconfdir}/cdi/qimsdk.json
-    # Host paths the spec bind-mounts: a missing one fails container start.
-    install -d -m 0755 ${D}${sysconfdir}/models ${D}${sysconfdir}/labels
-    install -d -m 0777 ${D}${sysconfdir}/media ${D}${sysconfdir}/configs
-    # The root home is not part of an ostree image; create its dirs at boot.
+    # Host paths the spec bind-mounts (a missing one fails container start)
+    # are created at boot: other packages may own some of them (e.g.
+    # /etc/configs), and the root home is not part of an ostree image.
     install -d ${D}${nonarch_libdir}/tmpfiles.d
     sed 's#@ROOT_HOME@#${ROOT_HOME}#g' ${S}/qimsdk-cdi.conf \
         > ${D}${nonarch_libdir}/tmpfiles.d/qimsdk-cdi.conf
