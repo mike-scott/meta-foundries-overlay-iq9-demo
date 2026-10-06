@@ -21,6 +21,10 @@ header:
     - common.yml
 
 repos:
+  # this repo: local layer with the demo's OS-side pieces
+  meta-foundries-overlay-iq9-demo:
+    layers:
+      meta-iq9-demo:
   meta-qcom:
     url: https://github.com/qualcomm-linux/meta-qcom
     branch: wrynose
@@ -28,6 +32,9 @@ repos:
     commit: ea0fdcc27decd59c3e9bc81dcacf9c5f9a65a062
 
 local_conf_header:
+  qip-demo: |
+    IMAGE_INSTALL:append = " qimsdk-cdi"
+
   capsule-board: |
     CAPSULE_GUID = "78462415-6133-431c-9fae-48f2bafd5c71"
 
