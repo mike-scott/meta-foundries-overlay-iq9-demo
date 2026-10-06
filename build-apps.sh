@@ -19,12 +19,6 @@ OCI=$PWD/build/oci
 BLD=imsdk-builder:qairt2.47.0-imsdk1.0.2
 RT=imsdk-runtime:latest
 
-if [ ! -d $APP/sdk-tools ]; then
-  git clone -b imsdk-tools.lnx.1.0 https://git.codelinaro.org/clo/le/sdk-tools.git $APP/sdk-tools
-  git -C $APP/sdk-tools checkout --detach 513e0a3fe1e67e131fa4f65694eeb07294ce8356
-  git -C $APP/sdk-tools apply "$PWD/$APP"/sdk-tools-patches/*.patch
-fi
-
 mkdir -p images "$OCI"
 # Each build is skipped when its output exists; delete the output to rebuild.
 
@@ -33,6 +27,12 @@ if [ ! -e images/shellhttpd.oci.tar ]; then
   docker buildx build --builder "$BUILDER" --platform linux/arm64 --provenance=false --sbom=false \
     --output type=oci,dest=images/shellhttpd.oci.tar,name=local-server/shellhttpd:latest \
     apps/shellhttpd
+fi
+
+if [ ! -d $APP/sdk-tools ]; then
+  git clone -b imsdk-tools.lnx.1.0 https://git.codelinaro.org/clo/le/sdk-tools.git $APP/sdk-tools
+  git -C $APP/sdk-tools checkout --detach 513e0a3fe1e67e131fa4f65694eeb07294ce8356
+  git -C $APP/sdk-tools apply "$PWD/$APP"/sdk-tools-patches/*.patch
 fi
 
 # imsdk-builder (x86 host image; cross-compiles to arm64)
