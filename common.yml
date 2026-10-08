@@ -10,8 +10,8 @@ header:
 repos:
   meta-foundries:
     url: https://github.com/foundriesio/meta-foundries
-    branch: ci-changes
-    commit: cc49b0645a856b702d088f29d894e49860f38202
+    branch: main
+    commit: f2c3e05fd5d6d7c9c9e210719297e2ac648e2128
 
 local_conf_header:
   ci: |
