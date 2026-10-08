@@ -3,17 +3,15 @@
 header:
   version: 14
 
-# TEMP: base.yml includes repo definitions which break most distros
-#       split this into base.yaml and base-settings.yml
-# includes:
-#   - repo: meta-foundries
-#     file: ci/include/base-settings.yml
+  includes:
+    - repo: meta-foundries
+      file: ci/include/base.yml
 
 repos:
   meta-foundries:
     url: https://github.com/foundriesio/meta-foundries
-    branch: docker-wrynose
-    commit: 1b499f59adac8c2beb311bddfe541bb96abaef09
+    branch: ci-changes
+    commit: cc49b0645a856b702d088f29d894e49860f38202
 
 local_conf_header:
   ci: |
@@ -23,29 +21,3 @@ local_conf_header:
     FIO_DEVICE_API = "https://local-server/v1/devices"
     FIO_OAUTH_API = "https://local-server/oauth2"
     IMAGE_INSTALL:append = " sudo"
-    # IMAGE_INSTALL:remove = "aktualizr aktualizr-info aktualizr-shared-prov"
-    # DISTRO_EXTRA_RDEPENDS:append = "packagegroup-foundries-platform packagegroup-foundries-containers"
-
-  # TEMP: include from ci/include/base.yml (without repo settings)
-  virtualization: |
-    SKIP_META_VIRT_SANITY_CHECK = "1"
-
-  base: |
-    CONF_VERSION = "2"
-    # Add size metadata to OSTree commit objects, allowing update size estimation
-    EXTRA_OSTREE_COMMIT += "--generate-sizes"
-
-  packagegroup-foundries-platform: |
-    IMAGE_INSTALL:append = " packagegroup-foundries-platform"
-    IMAGE_INSTALL:remove = "aktualizr aktualizr-info aktualizr-shared-prov"
-
-  packagegroup-foundries-containers: |
-    IMAGE_INSTALL:append = " packagegroup-foundries-containers"
-
-  packagegroup-foundries-network: |
-    IMAGE_INSTALL:append = " packagegroup-foundries-network"
-    IMAGE_INSTALL:remove = "network-configuration"
-
-  fio-device-register: |
-    LMP_FACTORY_TAG ?= "master"
-    OS_RELEASE_FIELDS:append = " LMP_FACTORY_TAG"
